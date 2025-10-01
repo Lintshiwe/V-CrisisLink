@@ -14,7 +14,8 @@ Vagrant.configure("2") do |config|
     vb.memory = "2048" # 2GB RAM
     vb.cpus = 2
     vb.name = "crisislink_vm"
-    vb.gui = true  # Enable GUI for debugging
+    # Disable GUI as it's not needed for headless operation
+    vb.gui = false
     
     # Disable features that might cause issues
     vb.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
@@ -30,28 +31,32 @@ Vagrant.configure("2") do |config|
   # Enable synced folder to access the provision script
   config.vm.synced_folder ".", "/vagrant"
 
-  # Two-stage provisioning for better stability
+  # First stage provisioning - basic requirements
   config.vm.provision "shell", inline: <<-SHELL
     echo "🚨 Installing basic requirements..."
     apt-get update
     apt-get install -y git curl
-    echo "✅ Basic setup complete. VM is ready for manual provisioning."
-    echo "Run 'sudo bash /vagrant/provision.sh' after logging in with 'vagrant ssh'"
+    echo "✅ Basic setup complete. Starting main provisioning..."
+  SHELL
+  
+  # Second stage provisioning - run the full provision script
+  config.vm.provision "shell", inline: <<-SHELL
+    echo "� Running the main provisioning script..."
+    sudo bash /vagrant/provision.sh
+    echo "✅ Provisioning completed!"
   SHELL
   
   # Message displayed after vagrant up
   config.vm.post_up_message = "
-    🚨 CrisisLink VM is now ready for provisioning!
+    🎉 CrisisLink VM setup is complete!
     
-    NEXT STEPS:
-    1. Log into the VM:         vagrant ssh
-    2. Run the provisioning:    sudo bash /vagrant/provision.sh
-    
-    After provisioning is complete, access the application at:
+    Your application is now running and available at:
       • Frontend: http://localhost:3000
       • Backend API: http://localhost:5000
-      
-    To stop the VM: vagrant halt
-    To destroy the VM: vagrant destroy
+    
+    To access the VM:   vagrant ssh
+    To stop the VM:     vagrant halt
+    To suspend VM:      vagrant suspend
+    To destroy the VM:  vagrant destroy
   "
 end

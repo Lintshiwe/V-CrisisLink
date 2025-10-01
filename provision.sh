@@ -110,6 +110,11 @@ echo -e "${YELLOW}Installing project dependencies...${NC}"
 cd /home/vagrant/CrisisLink
 sudo -u vagrant npm run install:all || sudo -u vagrant npm install && cd backend && sudo -u vagrant npm install && cd ../frontend && sudo -u vagrant npm install
 
+# Fix bcrypt native module issue
+echo -e "${YELLOW}Rebuilding bcrypt to fix native module issues...${NC}"
+cd /home/vagrant/CrisisLink/backend
+sudo -u vagrant npm rebuild bcrypt --build-from-source
+
 # Create startup script
 echo -e "${YELLOW}Creating startup script...${NC}"
 cat > /home/vagrant/start_crisislink.sh << EOF
@@ -146,6 +151,24 @@ EOF
 systemctl enable crisislink.service
 systemctl start crisislink.service
 
+# Wait for services to fully start
+echo -e "${YELLOW}Waiting for services to start (15 seconds)...${NC}"
+sleep 15
+
+# Check if services are running
+echo -e "${YELLOW}Verifying services are running...${NC}"
+frontend_running=$(netstat -tulpn | grep -q ":3000" && echo "yes" || echo "no")
+backend_running=$(netstat -tulpn | grep -q ":5000" && echo "yes" || echo "no")
+
+if [ "$frontend_running" = "no" ] || [ "$backend_running" = "no" ]; then
+  echo -e "${RED}⚠️ Service check failed. Attempting to restart...${NC}"
+  systemctl restart crisislink.service
+  sleep 10
+fi
+
+# Install net-tools for easier service checking
+apt-get install -y net-tools
+
 echo -e "${GREEN}🎉 CrisisLink VM provisioning completed!${NC}"
 echo -e "${GREEN}📱 Access the app at:${NC}"
 echo -e "${GREEN}   Frontend: http://localhost:3000${NC}"
@@ -155,3 +178,8 @@ echo ""
 echo -e "${YELLOW}Note: You may need to set up API keys in the environment files:${NC}"
 echo -e "${YELLOW}  - /home/vagrant/CrisisLink/backend/.env${NC}"
 echo -e "${YELLOW}  - /home/vagrant/CrisisLink/frontend/.env${NC}"
+echo ""
+echo -e "${GREEN}Troubleshooting:${NC}"
+echo -e "${YELLOW}- If the app doesn't start, try: sudo systemctl restart crisislink${NC}"
+echo -e "${YELLOW}- To view service logs: sudo journalctl -u crisislink${NC}"
+echo -e "${YELLOW}- To check ports in use: netstat -tulpn | grep -E '3000|5000'${NC}"

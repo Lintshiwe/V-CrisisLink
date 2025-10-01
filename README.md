@@ -21,8 +21,8 @@ Follow these steps to set up and run CrisisLink using Vagrant:
 ### 1. Clone this Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/CrisisLink-Vagrant.git
-cd CrisisLink-Vagrant
+git clone https://github.com/Lintshiwe/V-CrisisLink.git
+cd V-CrisisLink
 ```
 
 ### 2. Start the Vagrant VM
@@ -33,13 +33,16 @@ vagrant up
 
 This command will:
 
-- Download the Ubuntu 22.04 LTS base box (if not already present)
+- Download the Debian Bullseye base box (if not already present)
 - Set up a virtual machine with 2GB RAM and 2 CPU cores
 - Install all required dependencies (Node.js, PostgreSQL with PostGIS, Redis)
 - Clone the CrisisLink2.0 repository from GitHub
 - Set up the database and required environment files
 - Install all project dependencies
+- Fix any potential native module issues (like bcrypt)
 - Start the application automatically
+
+The entire setup is fully automated - no manual steps required!
 
 ### 3. Access the Application
 
@@ -103,15 +106,44 @@ Inside the VM, the CrisisLink project is located at `/home/vagrant/CrisisLink` w
 
 ## 📝 Troubleshooting
 
-If the application doesn't start automatically:
+If you encounter any issues:
+
+### Check the service status
+
+```bash
+vagrant ssh -c "sudo systemctl status crisislink"
+```
+
+### View service logs
+
+```bash
+vagrant ssh -c "sudo journalctl -u crisislink"
+```
+
+### Restart the application
+
+```bash
+vagrant ssh -c "sudo systemctl restart crisislink"
+```
+
+### Fix bcrypt native module issues
+
+If you see errors about the bcrypt module:
 
 ```bash
 vagrant ssh
-cd ~/CrisisLink
-npm run dev
+cd ~/CrisisLink/backend
+npm rebuild bcrypt --build-from-source
+sudo systemctl restart crisislink
 ```
 
-If you encounter database issues:
+### Check if ports are in use
+
+```bash
+vagrant ssh -c "netstat -tulpn | grep -E '3000|5000'"
+```
+
+### Database troubleshooting
 
 ```bash
 vagrant ssh
