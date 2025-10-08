@@ -179,12 +179,40 @@ sudo systemctl restart crisislink
 vagrant ssh -c "netstat -tulpn | grep -E '3000|5000'"
 ```
 
+### Database Health Check
+
+Run the comprehensive database health check:
+
+```bash
+vagrant ssh -c "./db-health-check.sh"
+```
+
 ### Database troubleshooting
+
+Check database connection:
+
+```bash
+vagrant ssh -c "sudo -u postgres psql -d crisislink -c 'SELECT version();'"
+```
+
+List databases and tables:
 
 ```bash
 vagrant ssh
 sudo -u postgres psql -c '\l' # List databases
 sudo -u postgres psql -d crisislink -c '\dt' # List tables
+```
+
+Restart database service:
+
+```bash
+vagrant ssh -c "sudo systemctl restart postgresql"
+```
+
+Test application database connection:
+
+```bash
+vagrant ssh -c "PGPASSWORD=crisislink_password psql -h localhost -U crisislink_user -d crisislink -c 'SELECT 1;'"
 ```
 
 ## 📄 License

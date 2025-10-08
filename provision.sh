@@ -41,6 +41,22 @@ apt-get install -y redis-server
 
 # Configure Redis to start on boot
 systemctl enable redis-server
+systemctl start redis-server
+
+# Test Redis connection
+echo -e "${YELLOW}Testing Redis connection...${NC}"
+if redis-cli ping > /dev/null 2>&1; then
+  echo -e "${GREEN}✅ Redis connection successful${NC}"
+else
+  echo -e "${YELLOW}⚠️ Redis not responding, restarting service...${NC}"
+  systemctl restart redis-server
+  sleep 2
+  if redis-cli ping > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ Redis connection successful after restart${NC}"
+  else
+    echo -e "${RED}❌ Redis connection failed${NC}"
+  fi
+fi
 
 # Set up PostgreSQL
 echo -e "${YELLOW}Setting up PostgreSQL database...${NC}"
@@ -126,6 +142,10 @@ DATABASE_URL=postgresql://crisislink_user:crisislink_password@localhost:5432/cri
 
 # Redis Configuration
 REDIS_URL=redis://localhost:6379
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
 
 # Weather & Environmental API Keys
 OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
@@ -186,10 +206,37 @@ if [ -f /home/vagrant/CrisisLink/backend/src/services/liveWeatherService.js ]; t
   fi
 fi
 
+# Test database connection
+echo -e "${YELLOW}Testing database connection...${NC}"
+if sudo -u postgres psql -d crisislink -c "SELECT version();" > /dev/null 2>&1; then
+  echo -e "${GREEN}✅ Database connection successful${NC}"
+else
+  echo -e "${RED}❌ Database connection failed${NC}"
+  exit 1
+fi
+
 # Initialize database schema if schema.sql exists
 if [ -f /home/vagrant/CrisisLink/database/schema.sql ]; then
   echo -e "${YELLOW}Initializing database schema...${NC}"
-  sudo -u postgres psql -d crisislink -f /home/vagrant/CrisisLink/database/schema.sql
+  # Run schema as the crisislink_user to ensure proper ownership
+  PGPASSWORD=crisislink_password psql -h localhost -U crisislink_user -d crisislink -f /home/vagrant/CrisisLink/database/schema.sql 2>/dev/null || {
+    echo -e "${YELLOW}Schema file not compatible with user permissions, running as postgres...${NC}"
+    sudo -u postgres psql -d crisislink -f /home/vagrant/CrisisLink/database/schema.sql
+    # Fix ownership after running as postgres
+    sudo -u postgres psql -d crisislink -c "REASSIGN OWNED BY postgres TO crisislink_user;"
+  }
+  echo -e "${GREEN}✅ Database schema initialized${NC}"
+else
+  echo -e "${YELLOW}⚠️ No schema.sql file found, skipping database initialization${NC}"
+fi
+
+# Verify database setup
+echo -e "${YELLOW}Verifying database setup...${NC}"
+table_count=$(PGPASSWORD=crisislink_password psql -h localhost -U crisislink_user -d crisislink -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | xargs)
+if [ "$table_count" -gt 0 ]; then
+  echo -e "${GREEN}✅ Database has $table_count tables${NC}"
+else
+  echo -e "${YELLOW}⚠️ Database is empty (no tables found)${NC}"
 fi
 
 # Install project dependencies
@@ -270,3 +317,6 @@ echo -e "${GREEN}Troubleshooting:${NC}"
 echo -e "${YELLOW}- If the app doesn't start, try: sudo systemctl restart crisislink${NC}"
 echo -e "${YELLOW}- To view service logs: sudo journalctl -u crisislink${NC}"
 echo -e "${YELLOW}- To check ports in use: netstat -tulpn | grep -E '3000|5000'${NC}"
+echo -e "${YELLOW}- To check database connection: sudo -u postgres psql -d crisislink -c 'SELECT version();'${NC}"
+echo -e "${YELLOW}- To view database tables: sudo -u postgres psql -d crisislink -c '\\dt'${NC}"
+echo -e "${YELLOW}- To restart database: sudo systemctl restart postgresql${NC}"
