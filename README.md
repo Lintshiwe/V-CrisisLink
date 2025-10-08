@@ -73,28 +73,64 @@ The Vagrant setup includes:
 
 You can modify these settings in the `Vagrantfile` if needed.
 
-## 🔑 API Keys
+## 🔑 API Keys Setup
 
-For full functionality, you need to set up the following API keys:
+CrisisLink comes with pre-configured API keys for core functionality, but you can also use your own keys.
 
-1. **Google Maps API Key**
-2. **Firebase Service Account**
-3. **OpenWeatherMap API Key**
-4. **Twilio Account SID and Auth Token**
+### Quick Setup (Recommended)
 
-To add these keys, SSH into the VM and edit the environment files:
+1. **Run the setup script**:
 
-```bash
-vagrant ssh
-nano ~/CrisisLink/backend/.env
-nano ~/CrisisLink/frontend/.env
-```
+   ```bash
+   ./setup-api-keys.sh
+   ```
 
-After updating the keys, restart the application:
+2. **Start Vagrant**:
 
-```bash
-sudo systemctl restart crisislink
-```
+   ```bash
+   vagrant up
+   ```
+
+### Manual Setup
+
+1. **Copy the template**:
+
+   ```bash
+   cp api-keys.env.template api-keys.env
+   ```
+
+2. **Edit your API keys**:
+
+   ```bash
+   nano api-keys.env
+   ```
+
+3. **Start Vagrant**:
+
+   ```bash
+   vagrant up
+   ```
+
+### Pre-configured Services
+
+The following services are **already configured** and working:
+
+✅ **OpenWeatherMap API** - Real-time weather data and alerts  
+✅ **Ambee Environmental API** - Natural disaster monitoring  
+✅ **Google Maps API** - Interactive maps and geolocation  
+✅ **Google Firebase API** - Real-time database and notifications
+
+### Optional Services (Require Your Own Credentials)
+
+❌ **Twilio SMS** - Emergency SMS alerts (optional)  
+❌ **Custom JWT Secret** - Enhanced security (recommended for production)
+
+### Security Features
+
+- 🔒 **API keys are never committed to Git** (protected by .gitignore)
+- 🔒 **Automatic environment variable injection** during VM setup
+- 🔒 **Template system** for easy key management
+- 🔒 **Fallback to working defaults** if no custom keys provided
 
 ## 🧩 Project Structure
 
@@ -143,12 +179,40 @@ sudo systemctl restart crisislink
 vagrant ssh -c "netstat -tulpn | grep -E '3000|5000'"
 ```
 
+### Database Health Check
+
+Run the comprehensive database health check:
+
+```bash
+vagrant ssh -c "./db-health-check.sh"
+```
+
 ### Database troubleshooting
+
+Check database connection:
+
+```bash
+vagrant ssh -c "sudo -u postgres psql -d crisislink -c 'SELECT version();'"
+```
+
+List databases and tables:
 
 ```bash
 vagrant ssh
 sudo -u postgres psql -c '\l' # List databases
 sudo -u postgres psql -d crisislink -c '\dt' # List tables
+```
+
+Restart database service:
+
+```bash
+vagrant ssh -c "sudo systemctl restart postgresql"
+```
+
+Test application database connection:
+
+```bash
+vagrant ssh -c "PGPASSWORD=crisislink_password psql -h localhost -U crisislink_user -d crisislink -c 'SELECT 1;'"
 ```
 
 ## 📄 License
